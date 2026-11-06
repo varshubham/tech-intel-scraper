@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+data/
+.pytest_cache/
+site/
+
+# GitHub Actions keeps its events database here; everything else it writes stays out
+ci-data/*
+!ci-data/events.db
+.DS_Store

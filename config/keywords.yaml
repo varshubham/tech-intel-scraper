@@ -1,0 +1,97 @@
+# An event is kept if its title/description/category matches any "tech" word
+# (whole-word, case-insensitive) and its title matches no "exclude" word.
+# Sources marked tech_only: true skip this filter.
+tech:
+  - technology
+  - tech
+  - AI
+  - artificial intelligence
+  - machine learning
+  - ML
+  - generative AI
+  - GenAI
+  - LLM
+  - data science
+  - data
+  - analytics
+  - big data
+  - cloud
+  - DevOps
+  - Kubernetes
+  - cyber
+  - cybersecurity
+  - security
+  - blockchain
+  - web3
+  - crypto
+  - IoT
+  - internet of things
+  - robotics
+  - automation
+  - semiconductor
+  - electronics
+  - 5G
+  - telecom
+  - quantum
+  - software
+  - developer
+  - developers
+  - hackathon
+  - coding
+  - programming
+  - startup
+  - startups
+  - SaaS
+  - fintech
+  - healthtech
+  - edtech
+  - agritech
+  - deep tech
+  - digital
+  - digital transformation
+  - IT
+  - ITeS
+  - e-governance
+  - AR
+  - VR
+  - metaverse
+  - drone
+  - drones
+  - EV
+  - electric vehicle
+  - space tech
+  - innovation
+  - Python
+  - JavaScript
+  - Java
+  - React
+  - AWS
+  - Azure
+  - Google Cloud
+  - GDG
+  - DevFest
+  - open source
+  - API
+  - agentic
+  - AI agents
+  - builders
+  - buildathon
+  - GIS
+  - no-code
+  - low-code
+  - product management
+  - product managers
+  - UX
+  - web development
+
+exclude:
+  - yoga
+  - wedding
+  - music
+  - concert
+  - comedy
+  - dance
+  - painting
+  - cooking
+  - astrology
+  - spiritual

@@ -1,0 +1,87 @@
+# Free hosting without a server: GitHub runs the crawl every day, keeps the database in this
+# repo (ci-data/events.db), attaches the Excel file to the run, and, if the repo is public,
+# publishes the events page on GitHub Pages.
+#
+# One-time setup: Settings -> Pages -> Source: "GitHub Actions" (public repos only).
+# Run it now: Actions tab -> "Daily crawl" -> "Run workflow".
+# Leads are not run here: they hold people's contact details. Run `python cli.py leads` locally.
+name: Daily crawl
+
+on:
+  schedule:
+    - cron: "30 0 * * *"   # 00:30 UTC = 06:00 IST
+  workflow_dispatch:
+
+permissions:
+  contents: write   # commit the updated database
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-crawl
+  cancel-in-progress: false
+
+env:
+  DATA_DIR: ci-data            # kept apart from your local data/ folder
+  DOWNLOAD_BROCHURES: "false"  # PDFs would bloat the repo; brochure links still appear
+  CRAWL_INTERVAL_HOURS: "0"
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      public: ${{ steps.visibility.outputs.public }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Crawl
+        # one failing website shouldn't stop the rest from being saved
+        continue-on-error: true
+        run: python cli.py crawl
+
+      - name: Build page and Excel
+        run: python cli.py site --out site
+
+      - name: Save database
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add ci-data/events.db
+          git diff --cached --quiet || git commit -m "Daily crawl $(date -u +%F)"
+          git push
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tech-events-${{ github.run_number }}
+          path: site/events.xlsx
+          retention-days: 90
+
+      - name: Is the repo public?
+        id: visibility
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "public=$(gh api repos/${{ github.repository }} --jq '.private | not')" >> "$GITHUB_OUTPUT"
+
+      - if: steps.visibility.outputs.public == 'true'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  pages:
+    needs: crawl
+    if: needs.crawl.outputs.public == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

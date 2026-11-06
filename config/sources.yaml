@@ -1,0 +1,185 @@
+# Event sources. Adding a site = adding an entry here; no code change needed.
+#
+# Fields:
+#   name           unique id (used in logs, DB, `python cli.py test-source <name>`)
+#   url / urls     listing page(s) to scrape
+#   type           static (default) | js  (js needs USE_PLAYWRIGHT=true + Playwright installed)
+#   tech_only      true = every event here is tech, skip the keyword filter
+#   follow_links   open each event's own page to fill gaps + find brochure PDFs (default true)
+#   max_detail_pages  cap on event pages opened per crawl (default MAX_DETAIL_PAGES)
+#   last_pages     for listings sorted oldest-first: crawl only the last N pages
+#                  (needs page_url, e.g. https://site/events/page/{page}/; url = page 1)
+#   country        keep only events in this country (e.g. IN); events that don't say are kept
+#   exclude_titles regex; listing items whose title matches are skipped (CFPs, sponsor pages)
+#   organizer      default organizer if the page doesn't say
+#   selectors      only for sites WITHOUT schema.org JSON-LD:
+#                    item:   CSS selector of one event card
+#                    fields: title / date / start_date / end_date / city / venue / description
+#                            / link / brochure / category / price
+#                            value = CSS selector, add @attr to read an attribute (a@href)
+#   enabled        false to switch a source off
+#
+# Sites with schema.org Event JSON-LD (Eventbrite, Meetup, AllEvents, many conference
+# sites) need only name + url.
+
+sources:
+  # ---------- Government / industry bodies ----------
+  # - name: nasscom
+  #   url: https://nasscom.in/events
+  #   tech_only: true
+  #   organizer: NASSCOM
+  #   selectors:
+  #     item: .perspectives_card
+  #     fields:
+  #       title: h3.job_title a
+  #       link: h3.job_title a@href
+  #       description: p.job_desc
+  #       date: .postdate
+  #       city: .city
+  #       category: .fee
+
+  # - name: stpi
+  #   url: https://www.stpi.in/en/main-events
+  #   tech_only: true
+  #   organizer: STPI (Software Technology Parks of India)
+  #   selectors:
+  #     item: .eventPostInfoItem
+  #     fields:
+  #       title: .info h4 a
+  #       link: .info h4 a@href
+  #       start_date: time@datetime
+  #       category: .categoryBtn
+
+  # meity.gov.in itself has no events section; MeitY publishes its events on the
+  # Digital India portal. The archive is oldest-first, so only the last pages are crawled.
+  - name: meity-digital-india
+    url: https://www.digitalindia.gov.in/events/
+    page_url: https://www.digitalindia.gov.in/events/page/{page}/
+    last_pages: 3
+    tech_only: true
+    organizer: MeitY (Ministry of Electronics and IT)
+    selectors:
+      item: .blog-item-box .single-item
+      fields:
+        title: .info h4 a
+        link: .info h4 a@href
+        date: .info p
+        description: .info p
+
+  # The archive above only lists events after they happen; upcoming ones are in the
+  # "Upcoming Events" sidebar widget on the same page.
+  - name: meity-digital-india-upcoming
+    url: https://www.digitalindia.gov.in/events/
+    tech_only: true
+    follow_links: true
+    organizer: MeitY (Ministry of Electronics and IT)
+    selectors:
+      item: .em-events-widget .em-item
+      fields:
+        title: .em-item-name a
+        link: .em-item-name a@href
+        date: .em-event-date
+        city: .em-event-location
+
+    # ---------- Ministry of Electronics & IT ----------
+
+  # Disabled: www.meity.gov.in sits behind Akamai, which returns 403 to bots (even for
+  # robots.txt), and it has no events section anyway; MeitY events come from Digital India above.
+  - name: meity
+    url: https://www.meity.gov.in/
+    enabled: false
+    tech_only: true
+    organizer: Ministry of Electronics and IT (MeitY)
+    follow_links: true
+    max_detail_pages: 100
+
+  # ---------- Developer / AI / startup event platforms ----------
+  # Conferences and meetups by Indian tech communities (Rootconf, Rust Bangalore, ...).
+  # Each event page has JSON-LD, so following links fills in the venue/city.
+  - name: hasgeek
+    url: https://hasgeek.com/
+    tech_only: true
+    # the home page also shows calls for proposals, sponsor and volunteer pages
+    exclude_titles: "^(sponsor|volunteer|speak at|call for|cfp)|call for (proposals|submissions)|run a workshop"
+    selectors:
+      item: a.card--upcoming
+      fields:
+        title: "@data-cy-title"
+        link: "@href"
+        date: ".card__body > div[aria-label]@aria-label"
+
+  # Hackathons. Class names are generated, so the card is matched on its component name
+  # and the date ("Starts 20/11/26") is read from the whole card text.
+  - name: devfolio-hackathons
+    url: https://devfolio.co/hackathons
+    tech_only: true
+    follow_links: false
+    selectors:
+      item: '[class*="CompactHackathonCard__StyledCard"]'
+      fields:
+        title: h3
+        link: "a:has(> h3)@href"
+        date: ""
+
+  # Developer conferences in India (schema.org JSON-LD).
+  - name: dev-events-india
+    url: https://dev.events/AS/IN
+    tech_only: true
+    follow_links: false
+
+  # AI / data / CXO events by Analytics India Magazine. Also lists events abroad: country keeps India only.
+  - name: aim-events
+    url: https://aimresearch.co/events
+    tech_only: true
+    country: IN
+    organizer: AIM (Analytics India Magazine)
+
+  # Luma city calendars mix tech with social events, so the keyword filter decides.
+  - name: luma-india
+    urls:
+      - https://lu.ma/bengaluru
+      - https://lu.ma/delhi
+      - https://lu.ma/mumbai
+    country: IN
+    follow_links: false
+
+  # ---------- Aggregators (schema.org JSON-LD, no selectors needed) ----------
+  # Aggregator event pages rarely carry brochures, so detail pages are skipped to keep crawls fast.
+  # - name: eventbrite-india
+  #   urls:
+  #     - https://www.eventbrite.com/d/india/technology--events/
+  #     - https://www.eventbrite.com/d/india--bangalore/technology--events/
+  #     - https://www.eventbrite.com/d/india--mumbai/technology--events/
+  #     - https://www.eventbrite.com/d/india--new-delhi/technology--events/
+  #     - https://www.eventbrite.com/d/india--hyderabad/technology--events/
+  #     - https://www.eventbrite.com/d/india--pune/technology--events/
+  #   follow_links: false
+
+  # - name: meetup-india
+  #   urls:
+  #     - https://www.meetup.com/find/?keywords=technology&location=in--Bengaluru&source=EVENTS
+  #     - https://www.meetup.com/find/?keywords=technology&location=in--Mumbai&source=EVENTS
+  #     - https://www.meetup.com/find/?keywords=technology&location=in--New%20Delhi&source=EVENTS
+  #     - https://www.meetup.com/find/?keywords=technology&location=in--Hyderabad&source=EVENTS
+  #     - https://www.meetup.com/find/?keywords=technology&location=in--Pune&source=EVENTS
+  #   follow_links: false
+
+  # - name: allevents-india
+  #   urls:
+  #     - https://allevents.in/bangalore/technology
+  #     - https://allevents.in/mumbai/technology
+  #     - https://allevents.in/delhi/technology
+  #     - https://allevents.in/hyderabad/technology
+  #     - https://allevents.in/chennai/technology
+  #   follow_links: false
+
+  # # ---------- Need a headless browser (set USE_PLAYWRIGHT=true, build with INSTALL_PLAYWRIGHT=true) ----------
+  # - name: konfhub
+  #   url: https://konfhub.com/events
+  #   type: js
+  #   enabled: false
+
+  # # ---------- Blocked for bots (HTTP 403) — left here for reference ----------
+  # - name: 10times-india
+  #   url: https://10times.com/india/technology
+  #   enabled: false

@@ -1,0 +1,29 @@
+services:
+  scraper:
+    build:
+      context: .
+      args:
+        INSTALL_PLAYWRIGHT: "${INSTALL_PLAYWRIGHT:-false}"
+    image: tech-events-scraper:latest
+    env_file: .env
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      PORT: "8000"
+    volumes:
+      - ./data:/app/data              # DB, brochures, exports, cache survive restarts
+      - ./config:/app/config:ro       # edit sources.yaml without rebuilding
+    restart: unless-stopped
+
+  # Optional local LLM fallback. Start with:  docker compose --profile llm up -d
+  # then: docker compose exec ollama ollama pull qwen2.5:7b
+  # and set USE_LLM=true, OLLAMA_URL=http://ollama:11434 in .env
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["llm"]
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  ollama:
